@@ -1,428 +1,495 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>MERSİN 5. ve 7. Grup 2B İş Durumu Takip Sistemi</title>
-  <!-- Tailwind CSS CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    /* Basit scrollbar ve modal iyileştirmeleri */
-    ::-webkit-scrollbar{height:10px;width:10px}::-webkit-scrollbar-thumb{border-radius:9999px}
-    dialog::backdrop{background:rgba(0,0,0,.35)}
-    .th-sortable{cursor:pointer}
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MERSİN 5. VE 7. GRUP 2B İŞ DURUMU TAKİP SİSTEMİ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Tablo başlıkları için sıralama ikonlarını göstermek için özel stil */
+        .sortable {
+            cursor: pointer;
+            position: relative;
+            padding-right: 20px;
+        }
+        .sortable::after {
+            content: '↕';
+            position: absolute;
+            right: 5px;
+            top: 50%;
+            transform: translateY(-50%);
+            opacity: 0.4;
+        }
+        .sortable.asc::after {
+            content: '↑';
+            opacity: 1;
+        }
+        .sortable.desc::after {
+            content: '↓';
+            opacity: 1;
+        }
+        /* Modal geçiş animasyonu */
+        .modal-transition {
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+        .modal-hidden {
+            opacity: 0;
+            transform: scale(0.95);
+            pointer-events: none;
+        }
+        .modal-visible {
+            opacity: 1;
+            transform: scale(1);
+            pointer-events: auto;
+        }
+    </style>
 </head>
-<body class="bg-slate-50 text-slate-800">
-  <header class="sticky top-0 z-20 bg-white/80 backdrop-blur border-b border-slate-200">
-    <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col gap-3">
-      <div class="flex items-center justify-between gap-4">
-        <h1 class="text-xl sm:text-2xl font-bold tracking-tight">
-          MERSİN 5. ve 7. GRUP 2B İŞ DURUMU TAKİP SİSTEMİ
-        </h1>
-        <div class="flex items-center gap-2">
-          <button id="btn-new" class="px-3 py-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800 text-sm">Yeni Kayıt</button>
-          <button id="btn-save" class="px-3 py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-500 text-sm">GitHub’a Kaydet</button>
-        </div>
-      </div>
+<body class="bg-gray-100 text-gray-800">
 
-      <!-- GitHub bağlantı çubuğu -->
-      <div class="grid sm:grid-cols-2 lg:grid-cols-6 gap-2">
-        <input id="gh-owner" class="px-3 py-2 rounded-xl border border-slate-300 bg-white" placeholder="Owner (örn: username)" />
-        <input id="gh-repo"  class="px-3 py-2 rounded-xl border border-slate-300 bg-white" placeholder="Repo (örn: repo_name)" />
-        <input id="gh-path"  class="px-3 py-2 rounded-xl border border-slate-300 bg-white" placeholder="Dosya yolu (örn: data/jobs.json)" />
-        <input id="gh-branch"class="px-3 py-2 rounded-xl border border-slate-300 bg-white" placeholder="Branch (örn: main)" />
-        <input id="gh-token" type="password" class="px-3 py-2 rounded-xl border border-slate-300 bg-white" placeholder="GitHub Token (ghp_…)" />
-        <div class="flex gap-2">
-          <button id="btn-connect" class="w-full px-3 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-500">Bağlan / Yenile</button>
-          <label class="flex items-center gap-2 text-sm px-3 py-2 rounded-xl border border-slate-300 bg-white">
-            <input id="remember" type="checkbox" class="accent-slate-900">
-            <span>Token’ı hatırla</span>
-          </label>
-        </div>
-      </div>
+    <div class="container mx-auto p-4 md:p-8">
+        
+        <!-- BAŞLIK -->
+        <header class="mb-8 text-center">
+            <h1 class="text-2xl md:text-4xl font-bold text-gray-700">MERSİN 5. VE 7. GRUP 2B İŞ DURUMU TAKİP SİSTEMİ</h1>
+            <p class="text-gray-500 mt-2">Verileri dinamik olarak görüntüleyin, güncelleyin ve GitHub'a kaydedin.</p>
+        </header>
 
-      <!-- Ara / filtre -->
-      <div class="flex flex-col sm:flex-row gap-2">
-        <input id="search" class="flex-1 px-3 py-2 rounded-xl border border-slate-300 bg-white" placeholder="Ara (ilçe, mahalle, personel, durum…)" />
-        <select id="statusFilter" class="px-3 py-2 rounded-xl border border-slate-300 bg-white">
-          <option value="">Tüm Durumlar</option>
-          <option>DEĞERLENDİRMEDE</option>
-          <option>ARAZİ DEVAM EDİYOR</option>
-        </select>
-        <button id="btn-export" class="px-3 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-100">JSON Dışa Aktar</button>
-        <input id="file-import" type="file" accept="application/json" class="hidden">
-        <button id="btn-import" class="px-3 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-100">JSON İçe Aktar</button>
-      </div>
+        <!-- ANA İÇERİK: ARAMA VE TABLO -->
+        <main id="mainContent" class="bg-white p-6 rounded-lg shadow-md">
+            <!-- Arama ve Ekleme Butonu -->
+            <div class="flex flex-col md:flex-row justify-between items-center mb-4 gap-4">
+                <div class="relative w-full md:w-1/3">
+                    <input type="text" id="searchInput" placeholder="Tabloda ara (İlçe, Mahalle...)" class="w-full p-2 pl-10 border rounded-md focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    <svg class="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                </div>
+                <button id="addJobBtn" class="w-full md:w-auto bg-green-600 text-white font-bold py-2 px-4 rounded-md hover:bg-green-700 transition duration-300 flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                    Yeni İş Ekle
+                </button>
+            </div>
+
+            <!-- VERİ TABLOSU -->
+            <div class="overflow-x-auto">
+                <table class="min-w-full bg-white border">
+                    <thead class="bg-gray-200">
+                        <tr>
+                            <th data-sort="ilce" class="py-3 px-4 text-left font-semibold text-sm text-gray-600 uppercase tracking-wider sortable">İlçe</th>
+                            <th data-sort="mahalle" class="py-3 px-4 text-left font-semibold text-sm text-gray-600 uppercase tracking-wider sortable">Mahalle</th>
+                            <th data-sort="blok_sayisi" class="py-3 px-4 text-left font-semibold text-sm text-gray-600 uppercase tracking-wider sortable">Blok Sayısı</th>
+                            <th data-sort="durum" class="py-3 px-4 text-left font-semibold text-sm text-gray-600 uppercase tracking-wider sortable">Durum</th>
+                            <th class="py-3 px-4 text-left font-semibold text-sm text-gray-600 uppercase tracking-wider">İşlem</th>
+                        </tr>
+                    </thead>
+                    <tbody id="jobTableBody" class="divide-y divide-gray-200">
+                        <!-- Veriler buraya dinamik olarak eklenecek -->
+                    </tbody>
+                </table>
+                 <div id="noDataMessage" class="text-center py-8 text-gray-500 hidden">
+                    Gösterilecek veri bulunamadı. Lütfen GitHub'dan veri getirin veya yeni bir iş ekleyin.
+                </div>
+            </div>
+        </main>
     </div>
-  </header>
 
-  <main class="max-w-7xl mx-auto px-4 py-6">
-    <div class="overflow-auto rounded-2xl border border-slate-200 bg-white">
-      <table class="min-w-full text-sm">
-        <thead class="bg-slate-100 text-slate-700 sticky top-0 z-10">
-          <tr>
-            <th class="p-3 text-left w-16">#</th>
-            <th class="p-3 text-left th-sortable" data-key="ilce">İlçe</th>
-            <th class="p-3 text-left th-sortable" data-key="mahalle">Mahalle</th>
-            <th class="p-3 text-left th-sortable" data-key="blok_sayisi">Blok</th>
-            <th class="p-3 text-left th-sortable" data-key="alan">Alan (ha)</th>
-            <th class="p-3 text-left">Personel</th>
-            <th class="p-3 text-left th-sortable" data-key="is_baslama">İş Başlama</th>
-            <th class="p-3 text-left th-sortable" data-key="bitis_tarihi">Bitiş</th>
-            <th class="p-3 text-left th-sortable" data-key="durum">Durum</th>
-            <th class="p-3 text-left">Değerlendirme</th>
-            <th class="p-3 text-right w-28">İşlemler</th>
-          </tr>
-        </thead>
-        <tbody id="tbody" class="divide-y divide-slate-100"></tbody>
-      </table>
+    <!-- MODAL (DETAY GÖRÜNTÜLEME VE DÜZENLEME) -->
+    <div id="jobModal" class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center p-4 modal-transition modal-hidden">
+        <div class="bg-white rounded-lg shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center p-4 border-b">
+                <h3 id="modalTitle" class="text-2xl font-bold">İş Detayları</h3>
+                <button id="closeModalBtn" class="text-gray-500 hover:text-gray-800">&times;</button>
+            </div>
+            <form id="jobForm" class="p-6 space-y-4">
+                <input type="hidden" id="jobId">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="ilce" class="block text-sm font-medium text-gray-700">İlçe</label>
+                        <input type="text" id="ilce" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label for="mahalle" class="block text-sm font-medium text-gray-700">Mahalle/Köy</label>
+                        <input type="text" id="mahalle" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="blok_sayisi" class="block text-sm font-medium text-gray-700">Blok Sayısı</label>
+                        <input type="number" id="blok_sayisi" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                     <div>
+                        <label for="alan" class="block text-sm font-medium text-gray-700">Alan (ha)</label>
+                        <input type="number" step="0.01" id="alan" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                </div>
+                 <div>
+                    <label for="personel" class="block text-sm font-medium text-gray-700">Personel (Virgülle ayırın)</label>
+                    <input type="text" id="personel" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="is_baslama" class="block text-sm font-medium text-gray-700">İş Başlama Tarihi</label>
+                        <input type="date" id="is_baslama" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label for="bitis_tarihi" class="block text-sm font-medium text-gray-700">Planlanan Bitiş Tarihi</label>
+                        <input type="date" id="bitis_tarihi" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="durum" class="block text-sm font-medium text-gray-700">Durum</label>
+                        <select id="durum" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                            <option>DEĞERLENDİRMEDE</option>
+                            <option>TAMAMLANDI</option>
+                            <option>PLANLAMADA</option>
+                            <option>İPTAL EDİLDİ</option>
+                            <option>ASKIDA</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="degerlendirme_durum" class="block text-sm font-medium text-gray-700">Değerlendirme Durumu</label>
+                        <input type="text" id="degerlendirme_durum" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                </div>
+
+                <div class="flex justify-end pt-4 border-t mt-6">
+                    <button type="button" id="cancelModalBtn" class="bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-md hover:bg-gray-400 mr-2">İptal</button>
+                    <button type="submit" class="bg-indigo-600 text-white font-bold py-2 px-4 rounded-md hover:bg-indigo-700">Kaydet</button>
+                </div>
+            </form>
+        </div>
     </div>
-    <p id="foot-info" class="text-xs text-slate-500 mt-3"></p>
-  </main>
 
-  <!-- Kayıt Modal -->
-  <dialog id="recordDialog" class="rounded-2xl p-0 w-[min(720px,95vw)]">
-    <form id="recordForm" method="dialog" class="p-4 sm:p-6">
-      <h2 class="text-lg font-semibold mb-4">Kayıt</h2>
-      <div class="grid sm:grid-cols-2 gap-3">
-        <label class="text-sm">İlçe
-          <input name="ilce" required class="w-full px-3 py-2 rounded-xl border border-slate-300" />
-        </label>
-        <label class="text-sm">Mahalle
-          <input name="mahalle" required class="w-full px-3 py-2 rounded-xl border border-slate-300" />
-        </label>
-        <label class="text-sm">Blok Sayısı
-          <input name="blok_sayisi" type="number" min="0" step="1" required class="w-full px-3 py-2 rounded-xl border border-slate-300" />
-        </label>
-        <label class="text-sm">Alan (ha)
-          <input name="alan" type="number" min="0" step="0.01" required class="w-full px-3 py-2 rounded-xl border border-slate-300" />
-        </label>
-        <label class="text-sm">Personel (virgülle ayır)
-          <input name="personel" placeholder="Hilmi Müftüoğlu, Mustafa Bıçak, ..." class="w-full px-3 py-2 rounded-xl border border-slate-300" />
-        </label>
-        <label class="text-sm">Durum
-          <input name="durum" placeholder="DEĞERLENDİRMEDE / ARAZİ DEVAM EDİYOR" class="w-full px-3 py-2 rounded-xl border border-slate-300" />
-        </label>
-        <label class="text-sm">Değerlendirme Durumu
-          <input name="degerlendirme_durum" placeholder="Devam Ediyor" class="w-full px-3 py-2 rounded-xl border border-slate-300" />
-        </label>
-        <label class="text-sm">İş Başlama
-          <input name="is_baslama" type="date" class="w-full px-3 py-2 rounded-xl border border-slate-300" />
-        </label>
-        <label class="text-sm">Bitiş
-          <input name="bitis_tarihi" type="date" class="w-full px-3 py-2 rounded-xl border border-slate-300" />
-        </label>
-      </div>
-      <div class="flex items-center justify-end gap-2 mt-5">
-        <button type="button" id="btn-delete" class="hidden px-3 py-2 rounded-xl bg-red-600 text-white hover:bg-red-500">Sil</button>
-        <button type="button" onclick="recordDialog.close()" class="px-3 py-2 rounded-xl border border-slate-300 bg-white">Vazgeç</button>
-        <button type="submit" class="px-3 py-2 rounded-xl bg-slate-900 text-white">Kaydet</button>
-      </div>
-      <input type="hidden" name="index" />
-    </form>
-  </dialog>
+    <!-- BİLDİRİM (TOAST) -->
+    <div id="toast" class="fixed top-5 right-5 bg-green-500 text-white py-2 px-4 rounded-lg shadow-lg opacity-0 transform translate-y-10 transition-all duration-300">
+        <p id="toast-message"></p>
+    </div>
 
-  <script>
-    // ---- GLOBAL STATE ----
-    let state = {
-      rows: [],
-      filtered: [],
-      sort: { key: "", dir: "asc" },
-      sha: null,            // GitHub contents SHA (update için gerekli)
-      lastLoaded: null
-    };
+    <!-- YÜKLENİYOR İKONU -->
+    <div id="loader" class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 hidden">
+        <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-white"></div>
+    </div>
 
-    // ---- HELPERS ----
-    const byId = (id) => document.getElementById(id);
-    const encodeBase64 = (str) => btoa(unescape(encodeURIComponent(str)));
-    const decodeBase64 = (b64) => decodeURIComponent(escape(atob(b64)));
 
-    function toast(msg, kind="info"){
-      const bg = kind==="error"?"bg-red-600":kind==="success"?"bg-emerald-600":"bg-slate-900";
-      const el = document.createElement("div");
-      el.className = `${bg} text-white fixed left-1/2 -translate-x-1/2 bottom-6 px-4 py-2 rounded-xl shadow-lg`;
-      el.textContent = msg;
-      document.body.appendChild(el);
-      setTimeout(()=>el.remove(), 2200);
-    }
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
 
-    // ---- GITHUB API ----
-    function ghHeaders() {
-      const token = byId("gh-token").value.trim();
-      if(!token){ throw new Error("GitHub token gerekli."); }
-      return {
-        "Accept": "application/vnd.github+json",
-        "Authorization": `Bearer ${token}`,
-        "X-GitHub-Api-Version": "2022-11-28",
-        "Content-Type": "application/json"
-      };
-    }
+        // --- GITHUB AYARLARI ---
+        // !!! ÖNEMLİ !!!
+        // Bu bölümdeki bilgiler, sağladığınız GitHub linkine göre güncellenmiştir.
+        // Token'ınız aynı kalmıştır.
+        const GITHUB_DEFAULTS = {
+            TOKEN: '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',
+            
+            // GitHub kullanıcı adınız ve repo adınız
+            REPO: 'gokhangeo/-HALE',
+            
+            // Reponuzdaki JSON dosyasının adı
+            FILE_PATH: 'db.json',
 
-    function ghConfig(){
-      const owner = byId("gh-owner").value.trim();
-      const repo  = byId("gh-repo").value.trim();
-      const path  = byId("gh-path").value.trim();
-      const branch= byId("gh-branch").value.trim() || "main";
-      if(!owner || !repo || !path) throw new Error("Owner, repo ve dosya yolu gerekli.");
-      return {owner, repo, path, branch};
-    }
+            BRANCH: 'main' // Repo'nuzun ana branch'i 'master' ise bunu değiştirin.
+        };
 
-    async function ghLoad(){
-      try{
-        const {owner, repo, path, branch} = ghConfig();
-        const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(branch)}`, {
-          method: "GET",
-          headers: ghHeaders()
+        // --- GLOBAL DEĞİŞKENLER ---
+        let jobsData = []; // GitHub'dan çekilen tüm veriler
+        let fileSha = null; // Dosyayı güncellemek için gereken SHA kimliği
+        let sortState = { key: null, asc: true }; // Sıralama durumu
+
+        // --- DOM ELEMENTLERİ ---
+        const DOMElements = {
+            mainContent: document.getElementById('mainContent'),
+            searchInput: document.getElementById('searchInput'),
+            addJobBtn: document.getElementById('addJobBtn'),
+            jobTableBody: document.getElementById('jobTableBody'),
+            noDataMessage: document.getElementById('noDataMessage'),
+            jobModal: document.getElementById('jobModal'),
+            modalTitle: document.getElementById('modalTitle'),
+            closeModalBtn: document.getElementById('closeModalBtn'),
+            cancelModalBtn: document.getElementById('cancelModalBtn'),
+            jobForm: document.getElementById('jobForm'),
+            jobId: document.getElementById('jobId'), // jobId için eklendi
+            loader: document.getElementById('loader'),
+            toast: document.getElementById('toast'),
+            toastMessage: document.getElementById('toast-message'),
+        };
+
+        // --- GITHUB API FONKSİYONLARI ---
+
+        // GitHub'dan veri çekme fonksiyonu
+        const fetchData = async () => {
+            const config = getGitHubConfig();
+            if (!config) return;
+
+            showLoader(true);
+            try {
+                const response = await fetch(`https://api.github.com/repos/${config.repo}/contents/${config.path}?ref=${config.branch}`, {
+                    headers: { 'Authorization': `token ${config.token}` }
+                });
+
+                if (!response.ok) {
+                    if (response.status === 404) {
+                         throw new Error('Repo veya dosya bulunamadı. Lütfen koddaki REPO ve FILE_PATH ayarlarını kontrol edin.');
+                    }
+                    throw new Error(`GitHub API Hatası: ${response.status} ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                fileSha = data.sha; // Dosya SHA'sını kaydet
+                const content = atob(data.content); // Base64 içeriği çöz
+                jobsData = JSON.parse(content);
+                renderTable(jobsData);
+                DOMElements.mainContent.classList.remove('hidden');
+                showToast('Veriler başarıyla GitHub\'dan çekildi.', 'success');
+            } catch (error) {
+                console.error('Veri çekme hatası:', error);
+                showToast(`Hata: ${error.message}`, 'error');
+                DOMElements.mainContent.classList.remove('hidden'); // Hata durumunda da ana ekran görünsün
+                 DOMElements.jobTableBody.innerHTML = '';
+                 DOMElements.noDataMessage.classList.remove('hidden');
+                 DOMElements.noDataMessage.textContent = `Veri yüklenemedi: ${error.message}`;
+            } finally {
+                showLoader(false);
+            }
+        };
+
+        // GitHub'a veri yazma (commit) fonksiyonu
+        const updateDataOnGitHub = async (updatedJobs, commitMessage) => {
+            const config = getGitHubConfig();
+            if (!config) return;
+
+            showLoader(true);
+            try {
+                const content = btoa(unescape(encodeURIComponent(JSON.stringify(updatedJobs, null, 2)))); // UTF-8 Desteği
+                const response = await fetch(`https://api.github.com/repos/${config.repo}/contents/${config.path}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `token ${config.token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: commitMessage,
+                        content: content,
+                        sha: fileSha, // Eski SHA'yı gönder
+                        branch: config.branch
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`GitHub API Hatası: ${response.status} ${response.statusText}`);
+                }
+                const data = await response.json();
+                fileSha = data.content.sha; // Yeni SHA'yı kaydet
+                jobsData = updatedJobs; // Lokal veriyi güncelle
+                renderTable(jobsData);
+                showToast('Değişiklikler başarıyla GitHub\'a kaydedildi.', 'success');
+            } catch (error) {
+                console.error('Veri güncelleme hatası:', error);
+                showToast(`Kaydetme Hatası: ${error.message}`, 'error');
+            } finally {
+                showLoader(false);
+            }
+        };
+
+        // --- TABLO VE ARAYÜZ FONKSİYONLARI ---
+
+        // Veriyi tabloya render etme
+        const renderTable = (data) => {
+            DOMElements.jobTableBody.innerHTML = '';
+            if (data.length === 0) {
+                DOMElements.noDataMessage.classList.remove('hidden');
+                DOMElements.noDataMessage.textContent = 'Gösterilecek veri bulunamadı. "Yeni İş Ekle" butonu ile başlayabilirsiniz.';
+                return;
+            }
+            DOMElements.noDataMessage.classList.add('hidden');
+
+            data.forEach((job, index) => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-gray-50';
+                tr.innerHTML = `
+                    <td class="py-3 px-4">${job.ilce}</td>
+                    <td class="py-3 px-4">${job.mahalle}</td>
+                    <td class="py-3 px-4">${job.blok_sayisi}</td>
+                    <td class="py-3 px-4"><span class="px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(job.durum)}">${job.durum}</span></td>
+                    <td class="py-3 px-4">
+                        <button data-id="${index}" class="text-indigo-600 hover:text-indigo-900 edit-btn">Detay/Düzenle</button>
+                    </td>
+                `;
+                DOMElements.jobTableBody.appendChild(tr);
+            });
+        };
+
+        // Duruma göre renk döndüren yardımcı fonksiyon
+        const getStatusColor = (status) => {
+            switch (status) {
+                case 'TAMAMLANDI': return 'bg-green-100 text-green-800';
+                case 'DEĞERLENDİRMEDE': return 'bg-yellow-100 text-yellow-800';
+                case 'İPTAL EDİLDİ': return 'bg-red-100 text-red-800';
+                case 'PLANLAMADA': return 'bg-blue-100 text-blue-800';
+                default: return 'bg-gray-100 text-gray-800';
+            }
+        };
+        
+        // Arama/Filtreleme fonksiyonu
+        const filterTable = () => {
+            const query = DOMElements.searchInput.value.toLowerCase();
+            const filteredData = jobsData.filter(job => 
+                Object.values(job).some(value => 
+                    String(value).toLowerCase().includes(query)
+                )
+            );
+            renderTable(filteredData);
+        };
+
+        // Sıralama fonksiyonu
+        const sortTable = (key) => {
+            if (sortState.key === key) {
+                sortState.asc = !sortState.asc;
+            } else {
+                sortState.key = key;
+                sortState.asc = true;
+            }
+
+            const sortedData = [...jobsData].sort((a, b) => {
+                const valA = a[key];
+                const valB = b[key];
+                let comparison = 0;
+
+                if (typeof valA === 'number' && typeof valB === 'number') {
+                    comparison = valA - valB;
+                } else {
+                    comparison = String(valA).localeCompare(String(valB), 'tr');
+                }
+                return sortState.asc ? comparison : -comparison;
+            });
+            
+            // Sıralama ikonlarını güncelle
+            document.querySelectorAll('.sortable').forEach(th => {
+                th.classList.remove('asc', 'desc');
+                if(th.dataset.sort === key) {
+                    th.classList.add(sortState.asc ? 'asc' : 'desc');
+                }
+            });
+
+            renderTable(sortedData);
+        };
+
+
+        // --- MODAL FONKSİYONLARI ---
+
+        // Modalı açma (yeni veya düzenleme için)
+        const openModal = (job = null, index = -1) => {
+            DOMElements.jobForm.reset();
+            DOMElements.jobId.value = index;
+
+            if (job) { // Düzenleme modu
+                DOMElements.modalTitle.textContent = 'İşi Düzenle';
+                document.getElementById('ilce').value = job.ilce || '';
+                document.getElementById('mahalle').value = job.mahalle || '';
+                document.getElementById('blok_sayisi').value = job.blok_sayisi || 0;
+                document.getElementById('alan').value = job.alan || 0;
+                document.getElementById('personel').value = Array.isArray(job.personel) ? job.personel.join(', ') : '';
+                document.getElementById('is_baslama').value = job.is_baslama || '';
+                document.getElementById('bitis_tarihi').value = job.bitis_tarihi || '';
+                document.getElementById('durum').value = job.durum || 'PLANLAMADA';
+                document.getElementById('degerlendirme_durum').value = job.degerlendirme_durum || '';
+            } else { // Ekleme modu
+                DOMElements.modalTitle.textContent = 'Yeni İş Ekle';
+            }
+            DOMElements.jobModal.classList.remove('modal-hidden');
+            DOMElements.jobModal.classList.add('modal-visible');
+        };
+
+        // Modalı kapatma
+        const closeModal = () => {
+            DOMElements.jobModal.classList.add('modal-hidden');
+            DOMElements.jobModal.classList.remove('modal-visible');
+        };
+
+        // Modal formunu kaydetme
+        const handleFormSubmit = (e) => {
+            e.preventDefault();
+            const id = parseInt(DOMElements.jobId.value);
+            
+            const updatedJob = {
+                ilce: document.getElementById('ilce').value,
+                mahalle: document.getElementById('mahalle').value,
+                blok_sayisi: parseInt(document.getElementById('blok_sayisi').value) || 0,
+                alan: parseFloat(document.getElementById('alan').value) || 0,
+                personel: document.getElementById('personel').value.split(',').map(p => p.trim()).filter(Boolean),
+                is_baslama: document.getElementById('is_baslama').value,
+                bitis_tarihi: document.getElementById('bitis_tarihi').value,
+                durum: document.getElementById('durum').value,
+                degerlendirme_durum: document.getElementById('degerlendirme_durum').value,
+            };
+
+            let commitMessage = '';
+            const updatedJobs = [...jobsData];
+
+            if (id > -1) { // Düzenleme
+                updatedJobs[id] = updatedJob;
+                commitMessage = `İş güncellendi: ${updatedJob.ilce} - ${updatedJob.mahalle}`;
+            } else { // Ekleme
+                updatedJobs.push(updatedJob);
+                commitMessage = `Yeni iş eklendi: ${updatedJob.ilce} - ${updatedJob.mahalle}`;
+            }
+
+            updateDataOnGitHub(updatedJobs, commitMessage);
+            closeModal();
+        };
+
+        // --- YARDIMCI FONKSİYONLAR ---
+        const getGitHubConfig = () => {
+            const { TOKEN, REPO, FILE_PATH, BRANCH } = GITHUB_DEFAULTS;
+            // Kaldırılan kontrol: Artık repo adının varsayılan olup olmadığını kontrol etmiyoruz.
+            // Bu, API'nin 404 hatasını yakalamasına ve kullanıcıya daha net bir hata göstermesine olanak tanır.
+            return { token: TOKEN, repo: REPO, path: FILE_PATH, branch: BRANCH };
+        };
+
+        const showLoader = (show) => {
+            DOMElements.loader.classList.toggle('hidden', !show);
+        };
+
+        const showToast = (message, type = 'success') => {
+            DOMElements.toastMessage.textContent = message;
+            DOMElements.toast.className = `fixed top-5 right-5 text-white py-2 px-4 rounded-lg shadow-lg transform translate-y-10 transition-all duration-300 ${type === 'success' ? 'bg-green-500' : 'bg-red-500'}`;
+            DOMElements.toast.style.opacity = '1';
+            DOMElements.toast.style.transform = 'translateY(0)';
+            setTimeout(() => {
+                DOMElements.toast.style.opacity = '0';
+                DOMElements.toast.style.transform = 'translateY(2.5rem)';
+            }, 3000);
+        };
+
+        // --- OLAY DİNLEYİCİLERİ ---
+        DOMElements.searchInput.addEventListener('input', filterTable);
+        DOMElements.addJobBtn.addEventListener('click', () => openModal());
+        DOMElements.closeModalBtn.addEventListener('click', closeModal);
+        DOMElements.cancelModalBtn.addEventListener('click', closeModal);
+        DOMElements.jobForm.addEventListener('submit', handleFormSubmit);
+        
+        // Tablo üzerindeki olayları delege etme (dinamik eklenen butonlar için)
+        DOMElements.jobTableBody.addEventListener('click', (e) => {
+            if (e.target && e.target.classList.contains('edit-btn')) {
+                const jobIndex = parseInt(e.target.dataset.id);
+                if (!isNaN(jobIndex) && jobsData[jobIndex]) {
+                    openModal(jobsData[jobIndex], jobIndex);
+                }
+            }
         });
-        if(res.status === 404){
-          // Dosya yoksa boş veri ile başlat
-          state.rows = [];
-          state.filtered = [...state.rows];
-          state.sha = null;
-          state.lastLoaded = new Date();
-          render();
-          toast("Dosya bulunamadı, yeni oluşturabilirsiniz.","info");
-          return;
-        }
-        if(!res.ok){ throw new Error(`GitHub yükleme hatası: ${res.status}`); }
-        const data = await res.json();
-        const json = JSON.parse(decodeBase64(data.content));
-        state.rows = Array.isArray(json) ? json : [];
-        state.filtered = [...state.rows];
-        state.sha = data.sha;
-        state.lastLoaded = new Date();
-        render();
-        toast("Veriler yüklendi.","success");
-      }catch(err){
-        console.error(err);
-        toast(err.message || "Yükleme hatası","error");
-      }
-    }
 
-    async function ghSave(){
-      try{
-        const {owner, repo, path, branch} = ghConfig();
-        const message = `chore(data): update ${path} via web app`;
-        const content = encodeBase64(JSON.stringify(state.rows, null, 2));
-        const body = { message, content, branch };
-        if(state.sha) body.sha = state.sha;
-
-        const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${encodeURIComponent(path)}`, {
-          method: "PUT",
-          headers: ghHeaders(),
-          body: JSON.stringify(body)
+        document.querySelector('thead').addEventListener('click', (e) => {
+            if(e.target.matches('.sortable')) {
+                sortTable(e.target.dataset.sort);
+            }
         });
-        if(!res.ok){ 
-          const t = await res.text();
-          throw new Error(`Kaydetme hatası: ${res.status} ${t}`); 
-        }
-        const data = await res.json();
-        state.sha = data.content?.sha || state.sha;
-        toast("GitHub’a kaydedildi.","success");
-      }catch(err){
-        console.error(err);
-        toast(err.message || "Kaydetme hatası","error");
-      }
-    }
-
-    // ---- TABLE RENDER & INTERACT ----
-    function render(){
-      // filtre
-      const q = byId("search").value.toLowerCase().trim();
-      const st = byId("statusFilter").value;
-      state.filtered = state.rows.filter(r=>{
-        const hay = [
-          r.ilce, r.mahalle, r.durum, r.degerlendirme_durum,
-          ...(Array.isArray(r.personel)?r.personel:[])
-        ].join(" ").toLowerCase();
-        const passQ = !q || hay.includes(q);
-        const passS = !st || (r.durum||"").toLowerCase() === st.toLowerCase();
-        return passQ && passS;
-      });
-
-      // sıralama
-      if(state.sort.key){
-        const {key, dir} = state.sort;
-        state.filtered.sort((a,b)=>{
-          const va = (a[key] ?? "").toString().toLowerCase();
-          const vb = (b[key] ?? "").toString().toLowerCase();
-          if(!isNaN(a[key]) && !isNaN(b[key])){ // sayısal
-            return dir==="asc" ? (a[key]-b[key]) : (b[key]-a[key]);
-          }
-          return dir==="asc" ? va.localeCompare(vb) : vb.localeCompare(va);
-        });
-      }
-
-      // tablo gövdesi
-      const tbody = byId("tbody");
-      tbody.innerHTML = "";
-      state.filtered.forEach((r, i)=>{
-        const tr = document.createElement("tr");
-        tr.className = "hover:bg-slate-50";
-        const idx = state.rows.indexOf(r);
-        tr.innerHTML = `
-          <td class="p-3 text-slate-500">${idx+1}</td>
-          <td class="p-3">${escapeHtml(r.ilce||"")}</td>
-          <td class="p-3">${escapeHtml(r.mahalle||"")}</td>
-          <td class="p-3">${r.blok_sayisi ?? ""}</td>
-          <td class="p-3">${r.alan ?? ""}</td>
-          <td class="p-3">${(r.personel||[]).join(", ")}</td>
-          <td class="p-3">${fmtDate(r.is_baslama)}</td>
-          <td class="p-3">${fmtDate(r.bitis_tarihi)}</td>
-          <td class="p-3">${escapeHtml(r.durum||"")}</td>
-          <td class="p-3">${escapeHtml(r.degerlendirme_durum||"")}</td>
-          <td class="p-3 text-right">
-            <button class="px-2 py-1 text-xs rounded-lg border border-slate-300 hover:bg-slate-100" data-act="edit" data-index="${idx}">Düzenle</button>
-          </td>`;
-        tbody.appendChild(tr);
-      });
-
-      // footer
-      byId("foot-info").textContent = `${state.filtered.length} kayıt gösteriliyor` + (state.lastLoaded ? ` · Son yükleme: ${state.lastLoaded.toLocaleString()}` : "");
-
-      // action bind
-      tbody.querySelectorAll("button[data-act=edit]").forEach(btn=>{
-        btn.addEventListener("click", ()=>{
-          openDialog(parseInt(btn.dataset.index,10));
-        });
-      });
-    }
-
-    function fmtDate(v){
-      if(!v) return "";
-      const d = new Date(v);
-      if(Number.isNaN(d.getTime())) return v;
-      return d.toISOString().slice(0,10);
-    }
-
-    function escapeHtml(s){
-      return (s??"").toString().replace(/[&<>"']/g, m=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;" }[m]));
-    }
-
-    // ---- DIALOG ----
-    const dlg = byId("recordDialog");
-    const form = byId("recordForm");
-    const btnDelete = byId("btn-delete");
-
-    function openDialog(index=-1){
-      form.reset();
-      form.index.value = index;
-      if(index>=0){
-        const r = state.rows[index];
-        form.ilce.value = r.ilce||"";
-        form.mahalle.value = r.mahalle||"";
-        form.blok_sayisi.value = r.blok_sayisi ?? "";
-        form.alan.value = r.alan ?? "";
-        form.personel.value = (r.personel||[]).join(", ");
-        form.is_baslama.value = fmtDate(r.is_baslama);
-        form.bitis_tarihi.value = fmtDate(r.bitis_tarihi);
-        form.durum.value = r.durum||"";
-        form.degerlendirme_durum.value = r.degerlendirme_durum||"";
-        btnDelete.classList.remove("hidden");
-      }else{
-        btnDelete.classList.add("hidden");
-      }
-      dlg.showModal();
-    }
-
-    form.addEventListener("submit",(e)=>{
-      e.preventDefault();
-      const r = {
-        ilce: form.ilce.value.trim(),
-        mahalle: form.mahalle.value.trim(),
-        blok_sayisi: Number(form.blok_sayisi.value),
-        alan: Number(form.alan.value),
-        personel: form.personel.value.split(",").map(s=>s.trim()).filter(Boolean),
-        is_baslama: form.is_baslama.value || null,
-        bitis_tarihi: form.bitis_tarihi.value || null,
-        durum: form.durum.value.trim(),
-        degerlendirme_durum: form.degerlendirme_durum.value.trim()
-      };
-      const idx = parseInt(form.index.value || "-1",10);
-      if(idx>=0){ state.rows[idx] = r; } else { state.rows.push(r); }
-      dlg.close();
-      render();
+        
+        // --- BAŞLANGIÇ ---
+        fetchData(); // Sayfa yüklendiğinde verileri otomatik çek
     });
-
-    btnDelete.addEventListener("click", ()=>{
-      const idx = parseInt(form.index.value || "-1",10);
-      if(idx>=0 && confirm("Bu kaydı silmek istediğinize emin misiniz?")){
-        state.rows.splice(idx,1);
-        dlg.close();
-        render();
-      }
-    });
-
-    // ---- UI EVENTS ----
-    byId("btn-connect").addEventListener("click", async ()=>{
-      try{
-        if(byId("remember").checked){
-          localStorage.setItem("gh_owner", byId("gh-owner").value);
-          localStorage.setItem("gh_repo",  byId("gh-repo").value);
-          localStorage.setItem("gh_path",  byId("gh-path").value);
-          localStorage.setItem("gh_branch",byId("gh-branch").value);
-          localStorage.setItem("gh_token", byId("gh-token").value);
-        }else{
-          ["gh_owner","gh_repo","gh_path","gh_branch","gh_token"].forEach(k=>localStorage.removeItem(k));
-        }
-        await ghLoad();
-      }catch(err){
-        toast(err.message,"error");
-      }
-    });
-
-    byId("btn-save").addEventListener("click", ghSave);
-    byId("btn-new").addEventListener("click", ()=>openDialog(-1));
-    byId("search").addEventListener("input", render);
-    byId("statusFilter").addEventListener("change", render);
-
-    // kolon sort
-    document.querySelectorAll(".th-sortable").forEach(th=>{
-      th.addEventListener("click", ()=>{
-        const key = th.dataset.key;
-        if(state.sort.key===key){
-          state.sort.dir = state.sort.dir==="asc" ? "desc" : "asc";
-        }else{
-          state.sort = {key, dir:"asc"};
-        }
-        render();
-      });
-    });
-
-    // dışa/içe aktar
-    byId("btn-export").addEventListener("click", ()=>{
-      const blob = new Blob([JSON.stringify(state.rows, null, 2)], {type:"application/json"});
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url; a.download = "jobs.json"; a.click();
-      URL.revokeObjectURL(url);
-    });
-    byId("btn-import").addEventListener("click", ()=>byId("file-import").click());
-    byId("file-import").addEventListener("change", async (ev)=>{
-      const f = ev.target.files[0];
-      if(!f) return;
-      const text = await f.text();
-      try{
-        const arr = JSON.parse(text);
-        if(!Array.isArray(arr)) throw new Error("JSON bir dizi olmalı.");
-        state.rows = arr;
-        render();
-        toast("JSON içe aktarıldı.","success");
-      }catch(e){
-        toast("Geçersiz JSON.","error");
-      }
-      ev.target.value = "";
-    });
-
-    // localStorage doldur
-    (function init(){
-      ["owner","repo","path","branch","token"].forEach(k=>{
-        const v = localStorage.getItem(`gh_${k}`);
-        if(v) byId(`gh-${k}`).value = v;
-      });
-      render(); // boş ekran render
-    })();
-  </script>
+    </script>
 </body>
 </html>
+
