@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MERSİN 5. ve 7. Grup 2B İş Durumu Takip Sistemi</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Basit scrollbar ve modal iyileştirmeleri */
+    ::-webkit-scrollbar{height:10px;width:10px}::-webkit-scrollbar-thumb{border-radius:9999px}
+    dialog::backdrop{background:rgba(0,0,0,.35)}
+    .th-sortable{cursor:pointer}
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+  <header class="sticky top-0 z-20 bg-white/80 backdrop-blur border-b border-slate-200">
+    <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col gap-3">
+      <div class="flex items-center justify-between gap-4">
+        <h1 class="text-xl sm:text-2xl font-bold tracking-tight">
+          MERSİN 5. ve 7. GRUP 2B İŞ DURUMU TAKİP SİSTEMİ
+        </h1>
+        <div class="flex items-center gap-2">
+          <button id="btn-new" class="px-3 py-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800 text-sm">Yeni Kayıt</button>
+          <button id="btn-save" class="px-3 py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-500 text-sm">GitHub’a Kaydet</button>
+        </div>
+      </div>
+
+      <!-- GitHub bağlantı çubuğu -->
+      <div class="grid sm:grid-cols-2 lg:grid-cols-6 gap-2">
+        <input id="gh-owner" class="px-3 py-2 rounded-xl border border-slate-300 bg-white" placeholder="Owner (örn: username)" />
+        <input id="gh-repo"  class="px-3 py-2 rounded-xl border border-slate-300 bg-white" placeholder="Repo (örn: repo_name)" />
+        <input id="gh-path"  class="px-3 py-2 rounded-xl border border-slate-300 bg-white" placeholder="Dosya yolu (örn: data/jobs.json)" />
+        <input id="gh-branch"class="px-3 py-2 rounded-xl border border-slate-300 bg-white" placeholder="Branch (örn: main)" />
+        <input id="gh-token" type="password" class="px-3 py-2 rounded-xl border border-slate-300 bg-white" placeholder="GitHub Token (ghp_…)" />
+        <div class="flex gap-2">
+          <button id="btn-connect" class="w-full px-3 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-500">Bağlan / Yenile</button>
+          <label class="flex items-center gap-2 text-sm px-3 py-2 rounded-xl border border-slate-300 bg-white">
+            <input id="remember" type="checkbox" class="accent-slate-900">
+            <span>Token’ı hatırla</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Ara / filtre -->
+      <div class="flex flex-col sm:flex-row gap-2">
+        <input id="search" class="flex-1 px-3 py-2 rounded-xl border border-slate-300 bg-white" placeholder="Ara (ilçe, mahalle, personel, durum…)" />
+        <select id="statusFilter" class="px-3 py-2 rounded-xl border border-slate-300 bg-white">
+          <option value="">Tüm Durumlar</option>
+          <option>DEĞERLENDİRMEDE</option>
+          <option>ARAZİ DEVAM EDİYOR</option>
+        </select>
+        <button id="btn-export" class="px-3 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-100">JSON Dışa Aktar</button>
+        <input id="file-import" type="file" accept="application/json" class="hidden">
+        <button id="btn-import" class="px-3 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-100">JSON İçe Aktar</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 py-6">
+    <div class="overflow-auto rounded-2xl border border-slate-200 bg-white">
+      <table class="min-w-full text-sm">
+        <thead class="bg-slate-100 text-slate-700 sticky top-0 z-10">
+          <tr>
+            <th class="p-3 text-left w-16">#</th>
+            <th class="p-3 text-left th-sortable" data-key="ilce">İlçe</th>
+            <th class="p-3 text-left th-sortable" data-key="mahalle">Mahalle</th>
+            <th class="p-3 text-left th-sortable" data-key="blok_sayisi">Blok</th>
+            <th class="p-3 text-left th-sortable" data-key="alan">Alan (ha)</th>
+            <th class="p-3 text-left">Personel</th>
+            <th class="p-3 text-left th-sortable" data-key="is_baslama">İş Başlama</th>
+            <th class="p-3 text-left th-sortable" data-key="bitis_tarihi">Bitiş</th>
+            <th class="p-3 text-left th-sortable" data-key="durum">Durum</th>
+            <th class="p-3 text-left">Değerlendirme</th>
+            <th class="p-3 text-right w-28">İşlemler</th>
+          </tr>
+        </thead>
+        <tbody id="tbody" class="divide-y divide-slate-100"></tbody>
+      </table>
+    </div>
+    <p id="foot-info" class="text-xs text-slate-500 mt-3"></p>
+  </main>
+
+  <!-- Kayıt Modal -->
+  <dialog id="recordDialog" class="rounded-2xl p-0 w-[min(720px,95vw)]">
+    <form id="recordForm" method="dialog" class="p-4 sm:p-6">
+      <h2 class="text-lg font-semibold mb-4">Kayıt</h2>
+      <div class="grid sm:grid-cols-2 gap-3">
+        <label class="text-sm">İlçe
+          <input name="ilce" required class="w-full px-3 py-2 rounded-xl border border-slate-300" />
+        </label>
+        <label class="text-sm">Mahalle
+          <input name="mahalle" required class="w-full px-3 py-2 rounded-xl border border-slate-300" />
+        </label>
+        <label class="text-sm">Blok Sayısı
+          <input name="blok_sayisi" type="number" min="0" step="1" required class="w-full px-3 py-2 rounded-xl border border-slate-300" />
+        </label>
+        <label class="text-sm">Alan (ha)
+          <input name="alan" type="number" min="0" step="0.01" required class="w-full px-3 py-2 rounded-xl border border-slate-300" />
+        </label>
+        <label class="text-sm">Personel (virgülle ayır)
+          <input name="personel" placeholder="Hilmi Müftüoğlu, Mustafa Bıçak, ..." class="w-full px-3 py-2 rounded-xl border border-slate-300" />
+        </label>
+        <label class="text-sm">Durum
+          <input name="durum" placeholder="DEĞERLENDİRMEDE / ARAZİ DEVAM EDİYOR" class="w-full px-3 py-2 rounded-xl border border-slate-300" />
+        </label>
+        <label class="text-sm">Değerlendirme Durumu
+          <input name="degerlendirme_durum" placeholder="Devam Ediyor" class="w-full px-3 py-2 rounded-xl border border-slate-300" />
+        </label>
+        <label class="text-sm">İş Başlama
+          <input name="is_baslama" type="date" class="w-full px-3 py-2 rounded-xl border border-slate-300" />
+        </label>
+        <label class="text-sm">Bitiş
+          <input name="bitis_tarihi" type="date" class="w-full px-3 py-2 rounded-xl border border-slate-300" />
+        </label>
+      </div>
+      <div class="flex items-center justify-end gap-2 mt-5">
+        <button type="button" id="btn-delete" class="hidden px-3 py-2 rounded-xl bg-red-600 text-white hover:bg-red-500">Sil</button>
+        <button type="button" onclick="recordDialog.close()" class="px-3 py-2 rounded-xl border border-slate-300 bg-white">Vazgeç</button>
+        <button type="submit" class="px-3 py-2 rounded-xl bg-slate-900 text-white">Kaydet</button>
+      </div>
+      <input type="hidden" name="index" />
+    </form>
+  </dialog>
+
+  <script>
+    // ---- GLOBAL STATE ----
+    let state = {
+      rows: [],
+      filtered: [],
+      sort: { key: "", dir: "asc" },
+      sha: null,            // GitHub contents SHA (update için gerekli)
+      lastLoaded: null
+    };
+
+    // ---- HELPERS ----
+    const byId = (id) => document.getElementById(id);
+    const encodeBase64 = (str) => btoa(unescape(encodeURIComponent(str)));
+    const decodeBase64 = (b64) => decodeURIComponent(escape(atob(b64)));
+
+    function toast(msg, kind="info"){
+      const bg = kind==="error"?"bg-red-600":kind==="success"?"bg-emerald-600":"bg-slate-900";
+      const el = document.createElement("div");
+      el.className = `${bg} text-white fixed left-1/2 -translate-x-1/2 bottom-6 px-4 py-2 rounded-xl shadow-lg`;
+      el.textContent = msg;
+      document.body.appendChild(el);
+      setTimeout(()=>el.remove(), 2200);
+    }
+
+    // ---- GITHUB API ----
+    function ghHeaders() {
+      const token = byId("gh-token").value.trim();
+      if(!token){ throw new Error("GitHub token gerekli."); }
+      return {
+        "Accept": "application/vnd.github+json",
+        "Authorization": `Bearer ${token}`,
+        "X-GitHub-Api-Version": "2022-11-28",
+        "Content-Type": "application/json"
+      };
+    }
+
+    function ghConfig(){
+      const owner = byId("gh-owner").value.trim();
+      const repo  = byId("gh-repo").value.trim();
+      const path  = byId("gh-path").value.trim();
+      const branch= byId("gh-branch").value.trim() || "main";
+      if(!owner || !repo || !path) throw new Error("Owner, repo ve dosya yolu gerekli.");
+      return {owner, repo, path, branch};
+    }
+
+    async function ghLoad(){
+      try{
+        const {owner, repo, path, branch} = ghConfig();
+        const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(branch)}`, {
+          method: "GET",
+          headers: ghHeaders()
+        });
+        if(res.status === 404){
+          // Dosya yoksa boş veri ile başlat
+          state.rows = [];
+          state.filtered = [...state.rows];
+          state.sha = null;
+          state.lastLoaded = new Date();
+          render();
+          toast("Dosya bulunamadı, yeni oluşturabilirsiniz.","info");
+          return;
+        }
+        if(!res.ok){ throw new Error(`GitHub yükleme hatası: ${res.status}`); }
+        const data = await res.json();
+        const json = JSON.parse(decodeBase64(data.content));
+        state.rows = Array.isArray(json) ? json : [];
+        state.filtered = [...state.rows];
+        state.sha = data.sha;
+        state.lastLoaded = new Date();
+        render();
+        toast("Veriler yüklendi.","success");
+      }catch(err){
+        console.error(err);
+        toast(err.message || "Yükleme hatası","error");
+      }
+    }
+
+    async function ghSave(){
+      try{
+        const {owner, repo, path, branch} = ghConfig();
+        const message = `chore(data): update ${path} via web app`;
+        const content = encodeBase64(JSON.stringify(state.rows, null, 2));
+        const body = { message, content, branch };
+        if(state.sha) body.sha = state.sha;
+
+        const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${encodeURIComponent(path)}`, {
+          method: "PUT",
+          headers: ghHeaders(),
+          body: JSON.stringify(body)
+        });
+        if(!res.ok){ 
+          const t = await res.text();
+          throw new Error(`Kaydetme hatası: ${res.status} ${t}`); 
+        }
+        const data = await res.json();
+        state.sha = data.content?.sha || state.sha;
+        toast("GitHub’a kaydedildi.","success");
+      }catch(err){
+        console.error(err);
+        toast(err.message || "Kaydetme hatası","error");
+      }
+    }
+
+    // ---- TABLE RENDER & INTERACT ----
+    function render(){
+      // filtre
+      const q = byId("search").value.toLowerCase().trim();
+      const st = byId("statusFilter").value;
+      state.filtered = state.rows.filter(r=>{
+        const hay = [
+          r.ilce, r.mahalle, r.durum, r.degerlendirme_durum,
+          ...(Array.isArray(r.personel)?r.personel:[])
+        ].join(" ").toLowerCase();
+        const passQ = !q || hay.includes(q);
+        const passS = !st || (r.durum||"").toLowerCase() === st.toLowerCase();
+        return passQ && passS;
+      });
+
+      // sıralama
+      if(state.sort.key){
+        const {key, dir} = state.sort;
+        state.filtered.sort((a,b)=>{
+          const va = (a[key] ?? "").toString().toLowerCase();
+          const vb = (b[key] ?? "").toString().toLowerCase();
+          if(!isNaN(a[key]) && !isNaN(b[key])){ // sayısal
+            return dir==="asc" ? (a[key]-b[key]) : (b[key]-a[key]);
+          }
+          return dir==="asc" ? va.localeCompare(vb) : vb.localeCompare(va);
+        });
+      }
+
+      // tablo gövdesi
+      const tbody = byId("tbody");
+      tbody.innerHTML = "";
+      state.filtered.forEach((r, i)=>{
+        const tr = document.createElement("tr");
+        tr.className = "hover:bg-slate-50";
+        const idx = state.rows.indexOf(r);
+        tr.innerHTML = `
+          <td class="p-3 text-slate-500">${idx+1}</td>
+          <td class="p-3">${escapeHtml(r.ilce||"")}</td>
+          <td class="p-3">${escapeHtml(r.mahalle||"")}</td>
+          <td class="p-3">${r.blok_sayisi ?? ""}</td>
+          <td class="p-3">${r.alan ?? ""}</td>
+          <td class="p-3">${(r.personel||[]).join(", ")}</td>
+          <td class="p-3">${fmtDate(r.is_baslama)}</td>
+          <td class="p-3">${fmtDate(r.bitis_tarihi)}</td>
+          <td class="p-3">${escapeHtml(r.durum||"")}</td>
+          <td class="p-3">${escapeHtml(r.degerlendirme_durum||"")}</td>
+          <td class="p-3 text-right">
+            <button class="px-2 py-1 text-xs rounded-lg border border-slate-300 hover:bg-slate-100" data-act="edit" data-index="${idx}">Düzenle</button>
+          </td>`;
+        tbody.appendChild(tr);
+      });
+
+      // footer
+      byId("foot-info").textContent = `${state.filtered.length} kayıt gösteriliyor` + (state.lastLoaded ? ` · Son yükleme: ${state.lastLoaded.toLocaleString()}` : "");
+
+      // action bind
+      tbody.querySelectorAll("button[data-act=edit]").forEach(btn=>{
+        btn.addEventListener("click", ()=>{
+          openDialog(parseInt(btn.dataset.index,10));
+        });
+      });
+    }
+
+    function fmtDate(v){
+      if(!v) return "";
+      const d = new Date(v);
+      if(Number.isNaN(d.getTime())) return v;
+      return d.toISOString().slice(0,10);
+    }
+
+    function escapeHtml(s){
+      return (s??"").toString().replace(/[&<>"']/g, m=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;" }[m]));
+    }
+
+    // ---- DIALOG ----
+    const dlg = byId("recordDialog");
+    const form = byId("recordForm");
+    const btnDelete = byId("btn-delete");
+
+    function openDialog(index=-1){
+      form.reset();
+      form.index.value = index;
+      if(index>=0){
+        const r = state.rows[index];
+        form.ilce.value = r.ilce||"";
+        form.mahalle.value = r.mahalle||"";
+        form.blok_sayisi.value = r.blok_sayisi ?? "";
+        form.alan.value = r.alan ?? "";
+        form.personel.value = (r.personel||[]).join(", ");
+        form.is_baslama.value = fmtDate(r.is_baslama);
+        form.bitis_tarihi.value = fmtDate(r.bitis_tarihi);
+        form.durum.value = r.durum||"";
+        form.degerlendirme_durum.value = r.degerlendirme_durum||"";
+        btnDelete.classList.remove("hidden");
+      }else{
+        btnDelete.classList.add("hidden");
+      }
+      dlg.showModal();
+    }
+
+    form.addEventListener("submit",(e)=>{
+      e.preventDefault();
+      const r = {
+        ilce: form.ilce.value.trim(),
+        mahalle: form.mahalle.value.trim(),
+        blok_sayisi: Number(form.blok_sayisi.value),
+        alan: Number(form.alan.value),
+        personel: form.personel.value.split(",").map(s=>s.trim()).filter(Boolean),
+        is_baslama: form.is_baslama.value || null,
+        bitis_tarihi: form.bitis_tarihi.value || null,
+        durum: form.durum.value.trim(),
+        degerlendirme_durum: form.degerlendirme_durum.value.trim()
+      };
+      const idx = parseInt(form.index.value || "-1",10);
+      if(idx>=0){ state.rows[idx] = r; } else { state.rows.push(r); }
+      dlg.close();
+      render();
+    });
+
+    btnDelete.addEventListener("click", ()=>{
+      const idx = parseInt(form.index.value || "-1",10);
+      if(idx>=0 && confirm("Bu kaydı silmek istediğinize emin misiniz?")){
+        state.rows.splice(idx,1);
+        dlg.close();
+        render();
+      }
+    });
+
+    // ---- UI EVENTS ----
+    byId("btn-connect").addEventListener("click", async ()=>{
+      try{
+        if(byId("remember").checked){
+          localStorage.setItem("gh_owner", byId("gh-owner").value);
+          localStorage.setItem("gh_repo",  byId("gh-repo").value);
+          localStorage.setItem("gh_path",  byId("gh-path").value);
+          localStorage.setItem("gh_branch",byId("gh-branch").value);
+          localStorage.setItem("gh_token", byId("gh-token").value);
+        }else{
+          ["gh_owner","gh_repo","gh_path","gh_branch","gh_token"].forEach(k=>localStorage.removeItem(k));
+        }
+        await ghLoad();
+      }catch(err){
+        toast(err.message,"error");
+      }
+    });
+
+    byId("btn-save").addEventListener("click", ghSave);
+    byId("btn-new").addEventListener("click", ()=>openDialog(-1));
+    byId("search").addEventListener("input", render);
+    byId("statusFilter").addEventListener("change", render);
+
+    // kolon sort
+    document.querySelectorAll(".th-sortable").forEach(th=>{
+      th.addEventListener("click", ()=>{
+        const key = th.dataset.key;
+        if(state.sort.key===key){
+          state.sort.dir = state.sort.dir==="asc" ? "desc" : "asc";
+        }else{
+          state.sort = {key, dir:"asc"};
+        }
+        render();
+      });
+    });
+
+    // dışa/içe aktar
+    byId("btn-export").addEventListener("click", ()=>{
+      const blob = new Blob([JSON.stringify(state.rows, null, 2)], {type:"application/json"});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = "jobs.json"; a.click();
+      URL.revokeObjectURL(url);
+    });
+    byId("btn-import").addEventListener("click", ()=>byId("file-import").click());
+    byId("file-import").addEventListener("change", async (ev)=>{
+      const f = ev.target.files[0];
+      if(!f) return;
+      const text = await f.text();
+      try{
+        const arr = JSON.parse(text);
+        if(!Array.isArray(arr)) throw new Error("JSON bir dizi olmalı.");
+        state.rows = arr;
+        render();
+        toast("JSON içe aktarıldı.","success");
+      }catch(e){
+        toast("Geçersiz JSON.","error");
+      }
+      ev.target.value = "";
+    });
+
+    // localStorage doldur
+    (function init(){
+      ["owner","repo","path","branch","token"].forEach(k=>{
+        const v = localStorage.getItem(`gh_${k}`);
+        if(v) byId(`gh-${k}`).value = v;
+      });
+      render(); // boş ekran render
+    })();
+  </script>
+</body>
+</html>
